@@ -26,7 +26,20 @@ namespace ToDoList.Controllers
             string currentUserId = User.Identity.GetUserId();
             ApplicationUser currentUser = db.Users.FirstOrDefault
                 (x => x.Id == currentUserId);
-            return db.ToDos.ToList().Where(x => x.User == currentUser);
+
+            IEnumerable < ToDo > myToDoes= db.ToDos.ToList().Where(x => x.User == currentUser);
+
+            int completeCount = 0;
+            foreach(ToDo toDo in myToDoes)
+            {
+                if (toDo.IsDone)
+                {
+                    completeCount++;
+                }
+            }
+            ViewBag.Percent = Math.Round(100f * ((float)completeCount / (float)myToDoes.Count()));
+
+            return myToDoes;
         }
 
         public ActionResult BuildToDoTable()
@@ -103,10 +116,20 @@ namespace ToDoList.Controllers
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
             ToDo toDo = db.ToDos.Find(id);
+
             if (toDo == null)
             {
                 return HttpNotFound();
             }
+            string currentUserId = User.Identity.GetUserId();
+            ApplicationUser currentUser = db.Users.FirstOrDefault
+                (x => x.Id == currentUserId);
+
+            if(toDo.User != currentUser)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+
             return View(toDo);
         }
 
@@ -124,6 +147,27 @@ namespace ToDoList.Controllers
                 return RedirectToAction("Index");
             }
             return View(toDo);
+        }
+
+        [HttpPost]
+        public ActionResult AJAXEdit(int ? id, bool value)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            ToDo toDo = db.ToDos.Find(id);
+            if (toDo == null)
+            {
+                return HttpNotFound();
+            }else
+            {
+                toDo.IsDone = value;
+                db.Entry(toDo).State = EntityState.Modified;
+                db.SaveChanges();
+                return PartialView("_ToDoTable", GetMyToDoes());
+            }
+
         }
 
         // GET: ToDoes/Delete/5
